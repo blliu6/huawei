@@ -88,8 +88,9 @@ val_loader = DataLoader(val_dataset, batch_size=256, shuffle=False, collate_fn=c
 # 定义模型
 model = Model(2, 1024)
 criterion = nn.CrossEntropyLoss()
-# optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-5)
+
 optimizer = optim.RMSprop(model.parameters(), lr=0.001, weight_decay=1e-5)
+# optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-5)
 
 # 训练模型
 num_epochs = 100
