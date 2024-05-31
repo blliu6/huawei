@@ -18,7 +18,7 @@ class Model(nn.Module):
         s = 30720
         for i in range(dense):
             self.seq.add_module(f'layer_{i}', nn.Linear(s, hidden_dim))
-            self.seq.add_module(f'activate_{i}', nn.ReLU())
+            self.seq.add_module(f'activate_{i}', nn.Hardtanh())
             s = hidden_dim
         self.seq.add_module(f'layer_last', nn.Linear(s, 11))
 
@@ -82,16 +82,17 @@ def collate_fn(batch):
     return torch.stack(features, 0), torch.stack(labels, 0)
 
 
-train_loader = DataLoader(train_dataset, batch_size=256, shuffle=False, collate_fn=collate_fn)
+train_loader = DataLoader(train_dataset, batch_size=256, shuffle=True, collate_fn=collate_fn)
 val_loader = DataLoader(val_dataset, batch_size=256, shuffle=False, collate_fn=collate_fn)
 
 # 定义模型
-model = Model(5, 256)
+model = Model(2, 1024)
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-5)
+# optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-5)
+optimizer = optim.RMSprop(model.parameters(), lr=0.001, weight_decay=1e-5)
 
 # 训练模型
-num_epochs = 50
+num_epochs = 100
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 model.to(device)
