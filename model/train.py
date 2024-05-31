@@ -7,18 +7,23 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 
+torch.manual_seed(2024)
+
 
 # 定义模型
 class Model(nn.Module):
-    def __init__(self):
+    def __init__(self, dense, hidden_dim):
         super(Model, self).__init__()
-        self.fc1 = nn.Linear(30720, 128)
-        self.fc2 = nn.Linear(128, 11)
+        self.seq = nn.Sequential()
+        s = 30720
+        for i in range(dense):
+            self.seq.add_module(f'layer_{i}', nn.Linear(s, hidden_dim))
+            self.seq.add_module(f'activate_{i}', nn.ReLU())
+            s = hidden_dim
+        self.seq.add_module(f'layer_last', nn.Linear(s, 11))
 
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
+        return self.seq(x)
 
 
 def preprocess(folder_path):
@@ -43,7 +48,7 @@ def preprocess(folder_path):
 
 
 # 加载数据
-folder_path = "./trainset"
+folder_path = "/home/blliu/huawei/train_set_remake"
 data, labels = preprocess(folder_path)
 
 # 划分数据集
@@ -77,16 +82,16 @@ def collate_fn(batch):
     return torch.stack(features, 0), torch.stack(labels, 0)
 
 
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
-val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, collate_fn=collate_fn)
+train_loader = DataLoader(train_dataset, batch_size=256, shuffle=False, collate_fn=collate_fn)
+val_loader = DataLoader(val_dataset, batch_size=256, shuffle=False, collate_fn=collate_fn)
 
 # 定义模型
-model = Model()
+model = Model(5, 256)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-5)
 
 # 训练模型
-num_epochs = 10000
+num_epochs = 50
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 model.to(device)
@@ -114,4 +119,4 @@ for epoch in range(num_epochs):
 
     accuracy = total_correct / len(val_dataset)
     print(f'Epoch {epoch + 1}, Validation Accuracy: {accuracy}')
-    torch.save(model, f'./model/model_{int(accuracy * 10000)}.pth')
+    # torch.save(model, f'./model/model_{int(accuracy * 10000)}.pth')
