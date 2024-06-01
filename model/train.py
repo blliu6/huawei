@@ -76,7 +76,9 @@ if __name__ == '__main__':
     data, labels = preprocess(folder_path)
 
     # 划分数据集
-    train_data, val_data, train_labels, val_labels = train_test_split(data, labels, test_size=0.2, random_state=42)
+    # train_data, val_data, train_labels, val_labels = train_test_split(data, labels, test_size=0.01, random_state=42)
+    train_data, train_labels = data, labels
+    val_data, val_labels = data.copy(), labels.copy()
     train_dataset = ComplexDataset(train_data, train_labels)
     val_dataset = ComplexDataset(val_data, val_labels)
 
@@ -98,6 +100,7 @@ if __name__ == '__main__':
 
     for epoch in range(num_epochs):
         model.train()
+        loss_all = 0
         for inputs, targets in train_loader:
             inputs, targets = inputs.to(device), targets.to(device)
             optimizer.zero_grad()
@@ -105,6 +108,7 @@ if __name__ == '__main__':
             outputs = torch.softmax(outputs, 1)
             loss = criterion(outputs, targets)
             loss.backward()
+            loss_all += loss.item()
             optimizer.step()
 
         # 验证集上的评估
@@ -118,6 +122,6 @@ if __name__ == '__main__':
                 total_correct += (predicted == targets).sum().item()
 
         accuracy = total_correct / len(val_dataset)
-        print(f'Epoch {epoch + 1}, Validation Accuracy: {accuracy}')
+        print(f'Epoch {epoch + 1}, loss:{loss_all}, Validation Accuracy: {accuracy}')
     # torch.save(model, f'./model/model_{int(accuracy * 10000)}.pth')
     torch.save(model.state_dict(), f'./model/model.pth')

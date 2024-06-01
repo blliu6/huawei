@@ -1,4 +1,5 @@
 import os
+import re
 import torch
 import numpy as np
 import pandas as pd
@@ -7,16 +8,23 @@ from train import Model
 
 
 def preprocess_test(folder_path):
-    data = []
+    data = {}
     cnt = 0
     for filename in os.listdir(folder_path):
         cnt += 1
+        match = re.search(r'(\d+).bin', filename)
+        if match:
+            label = int(match.group(1))
+        else:
+            continue
         if filename.endswith(".bin"):
             with open(os.path.join(folder_path, filename), 'rb') as file:
                 data_row_bin = file.read()
                 data_row_float16 = np.frombuffer(data_row_bin, dtype=np.float16)  # 原始数据是float16，直接把二进制bin读成float16的数组
                 data_row_float16 = np.array(data_row_float16)
-                data.append(data_row_float16)
+                data[label] = data_row_float16
+    data = dict(sorted(data.items()))
+    data = list(data.values())
     return data
 
 
@@ -71,7 +79,7 @@ if __name__ == '__main__':
     df_predictions = pd.DataFrame({'Prediction': predictions})
 
     # 将预测结果保存到CSV文件，提交时注意去除表头
-    csv_output_path = folder_path + '../result.csv'
-    df_predictions.to_csv(csv_output_path, index=False)  # index=False避免将索引写入CSV文件
+    csv_output_path = '../result.csv'
+    df_predictions.to_csv(csv_output_path, index=False, header=False)  # index=False避免将索引写入CSV文件
 
     print(f'Predictions have been saved to {csv_output_path}')
