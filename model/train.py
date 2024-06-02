@@ -123,7 +123,7 @@ if __name__ == '__main__':
     criterion = nn.CrossEntropyLoss()
 
     # optimizer = optim.RMSprop(model.parameters(), lr=0.001, weight_decay=1e-5)
-    optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-3)
+    optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-5)
 
     # 训练模型
     num_epochs = 200
