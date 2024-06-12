@@ -81,17 +81,40 @@ def main():
         cur[usr_id] = item.pos + 1
         # heapq.heappush(min_heap, (core_time[core_idx], core_idx))
 
+    sum_time = [[] for _ in range(m)]
     for pos, cores_tasks in enumerate(cores):
         core_len = len(cores_tasks)
+        # 处理超时任务
+        cur_time = 0
+        for i in range(core_len):
+            old_time = cur_time
+            cur_time += cores_tasks[i].exeTime
+            if cur_time <= cores_tasks[i].deadLine:
+                continue
+
+            for j in range(i + 1, core_len):
+                # 处理必定超时任务，将i移到j-1
+                if cores_tasks[j].usrInst == cores_tasks[i].usrInst:
+                    temp = cores_tasks[i]
+                    for k in range(i, j - 1):
+                        cores_tasks[k] = cores_tasks[k + 1]
+                    cores_tasks[j - 1] = temp
+                    i -= 1
+                    break
+            cur_time = old_time
+
         cur_time = 0
         # 正向做一次
-        for i in range(core_len):
+        i = 0
+        while i < core_len:
             cur_time_old = cur_time
             cur_time += cores_tasks[i].exeTime
             if (i < core_len - 1 and cores_tasks[i].msgType == cores_tasks[i + 1].msgType) or (
                     i > 0 and cores_tasks[i].msgType == cores_tasks[i - 1].msgType):
+                i += 1
                 continue
 
+            vis = False
             out_time = (cur_time > cores_tasks[i].deadLine)
             for j in range(i + 1, core_len):
                 if cores_tasks[i].usrInst == cores_tasks[j].usrInst:
@@ -105,23 +128,28 @@ def main():
                     for k in range(i, j - 1):
                         cores_tasks[k] = cores_tasks[k + 1]
                     cores_tasks[j - 1] = temp
-                    # i -= 1
+                    vis = True
                     break
 
                 cur_time += cores_tasks[j].exeTime
 
-            cur_time = cur_time_old + cores_tasks[i].exeTime
+            if vis:
+                cur_time = cur_time_old
+            else:
+                cur_time = cur_time_old + cores_tasks[i].exeTime
+                i += 1
 
-        sum_time = [[] for _ in range(m)]
         total = 0
         for i in range(core_len):
             total += cores_tasks[i].exeTime
             sum_time[pos].append(total)
 
         # 反向做一次,找到一个j，看看i能不能到j+1位置
-        for i in range(core_len - 1, -1, -1):
+        i = core_len - 1
+        while i >= 0:
             if (i < core_len - 1 and cores_tasks[i].msgType == cores_tasks[i + 1].msgType) or (
                     i > 0 and cores_tasks[i].msgType == cores_tasks[i - 1].msgType):
+                i -= 1
                 continue
 
             for j in range(i - 2, -1, -1):
@@ -140,7 +168,9 @@ def main():
                         sum_time[pos][k] = sum_time[pos][k - 1] + cores_tasks[i].exeTime
                     cores_tasks[j + 1] = temp
                     sum_time[pos][j + 1] = sum_time[pos][j] + cores_tasks[i].exeTime
+                    i += 1
                     break
+            i -= 1
 
     # 4. 输出结果
     output_lines = []
