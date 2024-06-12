@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import pandas as pd
 from torch.utils.data import DataLoader, Dataset
-from train import Model
+from train import Model, get_data
 
 
 def preprocess_test(folder_path):
@@ -22,7 +22,8 @@ def preprocess_test(folder_path):
                 data_row_bin = file.read()
                 data_row_float16 = np.frombuffer(data_row_bin, dtype=np.float16)  # 原始数据是float16，直接把二进制bin读成float16的数组
                 data_row_float16 = np.array(data_row_float16)
-                data[label] = data_row_float16
+                data[label] = get_data(data_row_float16)
+                # data[label] = data_row_float16
     data = dict(sorted(data.items()))
     data = list(data.values())
     return data
@@ -48,8 +49,16 @@ def collate_fn(batch):
 
 
 if __name__ == '__main__':
-    folder_path = "/home/blliu/huawei/test_set"
-    data = preprocess_test(folder_path)
+    # folder_path = "/home/blliu/huawei/test_set"
+    # data = preprocess_test(folder_path)
+
+    # torch.save({
+    #         'data': data
+    #     }, 'b.pth')
+
+
+    r = torch.load('b.pth')
+    data = r['data']    
 
     # 创建测试数据集实例
     test_dataset = ComplexDataset(data)
