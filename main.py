@@ -216,6 +216,47 @@ def main():
                     break
             i -= 1
 
+        # 处理块任务
+        i = 0
+        while i < core_len - 1:
+            if cores_tasks[i].msgType == cores_tasks[i + 1].msgType:
+                j = i + 1
+                usr = {cores_tasks[i].usrInst, cores_tasks[j].usrInst}
+                ddl = [cores_tasks[i].deadLine - sum_time[pos][i], cores_tasks[j].deadLine - sum_time[pos][j]]
+                while cores_tasks[i].msgType == cores_tasks[j + 1].msgType and j + 1 < core_len:
+                    j += 1
+                    usr.add(cores_tasks[j].usrInst)
+                    ddl.append(cores_tasks[j].deadLine - sum_time[pos][j])
+
+                ddl = [e for e in ddl if e > 0]
+                min_ddl = min(ddl)
+
+                # 将j移到k位置
+                total = 0
+                vis = False
+                for k in range(j + 1, core_len - 1):
+                    if cores_tasks[k].usrInst in usr:
+                        break
+                    total += cores_tasks[k].exeTime
+                    if total > min_ddl:
+                        break
+
+                    if cores_tasks[i].msgType == cores_tasks[k + 1].msgType:
+                        # 将[i,j]平移到[k-(j-i), k]
+                        temp = cores_tasks[i:j + 1]
+                        for z in range(i, k - (j - i)):
+                            cores_tasks[z] = cores_tasks[z + j - i + 1]
+
+                        for z in range(j - i + 1):
+                            cores_tasks[k - (j - i) + z] = temp[z]
+
+                        for z in range(i, k + 1):
+                            sum_time[pos][z] = sum_time[pos][z - 1] + cores_tasks[z].exeTime
+                        vis = True
+                        break
+                if not vis:
+                    i += 1
+            i += 1
     # 4. 输出结果
     output_lines = []
     for coreId, core_tasks in enumerate(cores):
