@@ -4,7 +4,7 @@ import sys
 input = lambda: sys.stdin.readline().strip()
 
 
-def getScores(cores, c):
+def getScores(cores):
     scores = 0
     for coreId, core_tasks in enumerate(cores):
         # line = str(len(core_tasks))
@@ -81,7 +81,7 @@ def main():
         cur[usr_id] = item.pos + 1
         # heapq.heappush(min_heap, (core_time[core_idx], core_idx))
 
-    for cores_tasks in cores:
+    for pos, cores_tasks in enumerate(cores):
         core_len = len(cores_tasks)
         cur_time = 0
         # 正向做一次
@@ -92,11 +92,12 @@ def main():
                     i > 0 and cores_tasks[i].msgType == cores_tasks[i - 1].msgType):
                 continue
 
+            out_time = (cur_time > cores_tasks[i].deadLine)
             for j in range(i + 1, core_len):
                 if cores_tasks[i].usrInst == cores_tasks[j].usrInst:
                     break
 
-                if cur_time > cores_tasks[i].deadLine:
+                if cur_time > cores_tasks[i].deadLine and not out_time:
                     break
 
                 if cores_tasks[i].msgType == cores_tasks[j].msgType:
@@ -111,11 +112,35 @@ def main():
 
             cur_time = cur_time_old + cores_tasks[i].exeTime
 
-        # 反向做一次
+        sum_time = [[] for _ in range(m)]
+        total = 0
+        for i in range(core_len):
+            total += cores_tasks[i].exeTime
+            sum_time[pos].append(total)
+
+        # 反向做一次,找到一个j，看看i能不能到j+1位置
         for i in range(core_len - 1, -1, -1):
             if (i < core_len - 1 and cores_tasks[i].msgType == cores_tasks[i + 1].msgType) or (
                     i > 0 and cores_tasks[i].msgType == cores_tasks[i - 1].msgType):
                 continue
+
+            for j in range(i - 2, -1, -1):
+                if cores_tasks[i].usrInst == cores_tasks[j + 1].usrInst:
+                    break
+
+                # 任务j+1是否超时
+                out_time = sum_time[pos][j + 1] > cores_tasks[j + 1].deadLine
+                if sum_time[pos][j + 1] + cores_tasks[i].exeTime > cores_tasks[j + 1].deadLine and not out_time:
+                    break
+
+                if cores_tasks[i].msgType == cores_tasks[j].msgType:
+                    temp = cores_tasks[i]
+                    for k in range(i, j + 1, -1):
+                        cores_tasks[k] = cores_tasks[k - 1]
+                        sum_time[pos][k] = sum_time[pos][k - 1] + cores_tasks[i].exeTime
+                    cores_tasks[j + 1] = temp
+                    sum_time[pos][j + 1] = sum_time[pos][j] + cores_tasks[i].exeTime
+                    break
 
     # 4. 输出结果
     output_lines = []
@@ -126,6 +151,7 @@ def main():
         output_lines.append(line + "\n")
 
     print(''.join(output_lines), end='')
+    getScores(cores)
 
 
 if __name__ == "__main__":
