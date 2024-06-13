@@ -32,7 +32,7 @@ MAX_USER_ID = 10005
 
 
 def opt(ops, pos, core_len, cores_tasks, sum_time):
-    if ops == 1:  # 正向优化
+    if ops == 0:  # 正向优化
         cur_time = 0
         # 正向做一次
         i = 0
@@ -70,7 +70,7 @@ def opt(ops, pos, core_len, cores_tasks, sum_time):
             else:
                 cur_time = cur_time_old + cores_tasks[i].exeTime
                 i += 1
-    elif ops == 2:  # 反向优化
+    elif ops == 1:  # 反向优化
         i = core_len - 1
         while i >= 0:
             if (i < core_len - 1 and cores_tasks[i].msgType == cores_tasks[i + 1].msgType) or (
@@ -97,7 +97,7 @@ def opt(ops, pos, core_len, cores_tasks, sum_time):
                     i += 1
                     break
             i -= 1
-    elif ops == 3:  # 正向块优化
+    elif ops == 2:  # 正向块优化
         i = 0
         while i < core_len - 1:
             if cores_tasks[i].msgType == cores_tasks[i + 1].msgType:
@@ -138,7 +138,7 @@ def opt(ops, pos, core_len, cores_tasks, sum_time):
                 if not vis:
                     i += 1
             i += 1
-    elif ops == 4:  # 反向块优化
+    elif ops == 3:  # 反向块优化
         i = core_len - 1
         while i >= 0:
             if cores_tasks[i].msgType == cores_tasks[i - 1].msgType:
@@ -238,13 +238,13 @@ def main():
             total += cores_tasks[i].exeTime
             sum_time[pos].append(total)
 
+        opt(0, pos, core_len, cores_tasks, sum_time)
         opt(1, pos, core_len, cores_tasks, sum_time)
+        opt(3, pos, core_len, cores_tasks, sum_time)
         opt(2, pos, core_len, cores_tasks, sum_time)
-        opt(4, pos, core_len, cores_tasks, sum_time)
         opt(3, pos, core_len, cores_tasks, sum_time)
-        opt(4, pos, core_len, cores_tasks, sum_time)
+        opt(2, pos, core_len, cores_tasks, sum_time)
         opt(3, pos, core_len, cores_tasks, sum_time)
-        opt(4, pos, core_len, cores_tasks, sum_time)
         # 处理超时任务
         # cur_time = 0
         # i = 0
