@@ -31,6 +31,153 @@ class MessageTask:
 MAX_USER_ID = 10005
 
 
+def opt(ops, pos, core_len, cores_tasks, sum_time):
+    if ops == 1:  # 正向优化
+        cur_time = 0
+        # 正向做一次
+        i = 0
+        while i < core_len:
+            cur_time_old = cur_time
+            cur_time += cores_tasks[i].exeTime
+            if (i < core_len - 1 and cores_tasks[i].msgType == cores_tasks[i + 1].msgType) or (
+                    i > 0 and cores_tasks[i].msgType == cores_tasks[i - 1].msgType):
+                i += 1
+                continue
+
+            vis = False
+            out_time = (cur_time > cores_tasks[i].deadLine)
+            # 移到j位置
+            for j in range(i + 1, core_len - 1):
+                if cores_tasks[i].usrInst == cores_tasks[j].usrInst:
+                    break
+
+                cur_time += cores_tasks[j].exeTime
+                if cur_time > cores_tasks[i].deadLine and not out_time:
+                    break
+
+                if cores_tasks[i].msgType == cores_tasks[j + 1].msgType:
+                    temp = cores_tasks[i]
+                    for k in range(i, j):
+                        cores_tasks[k] = cores_tasks[k + 1]
+                    cores_tasks[j] = temp
+                    for k in range(i, j + 1):
+                        sum_time[pos][k] = sum_time[pos][k - 1] + cores_tasks[k].exeTime
+                    vis = True
+                    break
+
+            if vis:
+                cur_time = cur_time_old
+            else:
+                cur_time = cur_time_old + cores_tasks[i].exeTime
+                i += 1
+    elif ops == 2:  # 反向优化
+        i = core_len - 1
+        while i >= 0:
+            if (i < core_len - 1 and cores_tasks[i].msgType == cores_tasks[i + 1].msgType) or (
+                    i > 0 and cores_tasks[i].msgType == cores_tasks[i - 1].msgType):
+                i -= 1
+                continue
+
+            for j in range(i - 2, -1, -1):
+                if cores_tasks[i].usrInst == cores_tasks[j + 1].usrInst:
+                    break
+
+                # 任务j+1是否超时
+                out_time = sum_time[pos][j + 1] > cores_tasks[j + 1].deadLine
+                if sum_time[pos][j + 1] + cores_tasks[i].exeTime > cores_tasks[j + 1].deadLine and not out_time:
+                    break
+
+                if cores_tasks[i].msgType == cores_tasks[j].msgType:
+                    temp = cores_tasks[i]
+                    for k in range(i, j + 1, -1):
+                        cores_tasks[k] = cores_tasks[k - 1]
+                        sum_time[pos][k] = sum_time[pos][k - 1] + temp.exeTime
+                    cores_tasks[j + 1] = temp
+                    sum_time[pos][j + 1] = sum_time[pos][j] + cores_tasks[j + 1].exeTime
+                    i += 1
+                    break
+            i -= 1
+    elif ops == 3:  # 正向块优化
+        i = 0
+        while i < core_len - 1:
+            if cores_tasks[i].msgType == cores_tasks[i + 1].msgType:
+                j = i + 1
+                usr = {cores_tasks[i].usrInst, cores_tasks[j].usrInst}
+                ddl = [cores_tasks[i].deadLine - sum_time[pos][i], cores_tasks[j].deadLine - sum_time[pos][j]]
+                while j + 1 < core_len and cores_tasks[i].msgType == cores_tasks[j + 1].msgType:
+                    j += 1
+                    usr.add(cores_tasks[j].usrInst)
+                    ddl.append(cores_tasks[j].deadLine - sum_time[pos][j])
+
+                ddl = [e for e in ddl if e >= 0]
+                min_ddl = min(ddl)
+
+                # 将j移到k位置
+                total = 0
+                vis = False
+                for k in range(j + 1, core_len - 1):
+                    if cores_tasks[k].usrInst in usr:
+                        break
+                    total += cores_tasks[k].exeTime
+                    if total > min_ddl:
+                        break
+
+                    if cores_tasks[i].msgType == cores_tasks[k + 1].msgType:
+                        # 将[i,j]平移到[k-(j-i), k]
+                        temp = cores_tasks[i:j + 1]
+                        for z in range(i, k - (j - i)):
+                            cores_tasks[z] = cores_tasks[z + j - i + 1]
+
+                        for z in range(j - i + 1):
+                            cores_tasks[k - (j - i) + z] = temp[z]
+
+                        for z in range(i, k + 1):
+                            sum_time[pos][z] = sum_time[pos][z - 1] + cores_tasks[z].exeTime
+                        vis = True
+                        break
+                if not vis:
+                    i += 1
+            i += 1
+    elif ops == 4:  # 反向块优化
+        i = core_len - 1
+        while i >= 0:
+            if cores_tasks[i].msgType == cores_tasks[i - 1].msgType:
+                j = i - 1
+                usr = {cores_tasks[i].usrInst, cores_tasks[j].usrInst}
+                total_exe = cores_tasks[i].exeTime + cores_tasks[j].exeTime
+                while j - 1 >= 0 and cores_tasks[i].msgType == cores_tasks[j - 1].msgType:
+                    j -= 1
+                    usr.add(cores_tasks[j].usrInst)
+                    total_exe += cores_tasks[j].exeTime
+
+                # 将j移动到k
+                vis = False
+                for k in range(j - 1, 0, -1):
+                    if cores_tasks[k].usrInst in usr:
+                        break
+
+                    if sum_time[pos][k] + total_exe > cores_tasks[k].deadLine:
+                        break
+
+                    # 将[j,i] 移动到 [k,k+(i-j)]
+                    if cores_tasks[i].msgType == cores_tasks[k - 1].msgType:
+                        temp = cores_tasks[j:i + 1]
+                        for z in range(i, k + (i - j), -1):
+                            cores_tasks[z] = cores_tasks[z - (i - j) - 1]
+
+                        for z in range(i - j + 1):
+                            cores_tasks[k + z] = temp[z]
+
+                        for z in range(k, i + 1):
+                            sum_time[pos][z] = sum_time[pos][z - 1] + cores_tasks[z].exeTime
+
+                        vis = True
+                        break
+                if not vis:
+                    i -= 1
+            i -= 1
+
+
 def main():
     # 1. 读取任务数、核数、系统最大执行时间
     n, m, c = map(int, input().split())
@@ -84,6 +231,20 @@ def main():
     sum_time = [[] for _ in range(m)]
     for pos, cores_tasks in enumerate(cores):
         core_len = len(cores_tasks)
+
+        sum_time[pos] = []
+        total = 0
+        for i in range(core_len):
+            total += cores_tasks[i].exeTime
+            sum_time[pos].append(total)
+
+        opt(1, pos, core_len, cores_tasks, sum_time)
+        opt(2, pos, core_len, cores_tasks, sum_time)
+        opt(4, pos, core_len, cores_tasks, sum_time)
+        opt(3, pos, core_len, cores_tasks, sum_time)
+        opt(4, pos, core_len, cores_tasks, sum_time)
+        opt(3, pos, core_len, cores_tasks, sum_time)
+        opt(4, pos, core_len, cores_tasks, sum_time)
         # 处理超时任务
         # cur_time = 0
         # i = 0
@@ -146,117 +307,6 @@ def main():
         #     if j + 1 < i:
         #         i -= 1
 
-        cur_time = 0
-        # 正向做一次
-        i = 0
-        while i < core_len:
-            cur_time_old = cur_time
-            cur_time += cores_tasks[i].exeTime
-            if (i < core_len - 1 and cores_tasks[i].msgType == cores_tasks[i + 1].msgType) or (
-                    i > 0 and cores_tasks[i].msgType == cores_tasks[i - 1].msgType):
-                i += 1
-                continue
-
-            vis = False
-            out_time = (cur_time > cores_tasks[i].deadLine)
-            # 移到j位置
-            for j in range(i + 1, core_len - 1):
-                if cores_tasks[i].usrInst == cores_tasks[j].usrInst:
-                    break
-
-                cur_time += cores_tasks[j].exeTime
-                if cur_time > cores_tasks[i].deadLine and not out_time:
-                    break
-
-                if cores_tasks[i].msgType == cores_tasks[j + 1].msgType:
-                    temp = cores_tasks[i]
-                    for k in range(i, j):
-                        cores_tasks[k] = cores_tasks[k + 1]
-                    cores_tasks[j] = temp
-                    vis = True
-                    break
-
-            if vis:
-                cur_time = cur_time_old
-            else:
-                cur_time = cur_time_old + cores_tasks[i].exeTime
-                i += 1
-
-        sum_time[pos] = []
-        total = 0
-        for i in range(core_len):
-            total += cores_tasks[i].exeTime
-            sum_time[pos].append(total)
-
-        # 反向做一次,找到一个j，看看i能不能到j+1位置
-        i = core_len - 1
-        while i >= 0:
-            if (i < core_len - 1 and cores_tasks[i].msgType == cores_tasks[i + 1].msgType) or (
-                    i > 0 and cores_tasks[i].msgType == cores_tasks[i - 1].msgType):
-                i -= 1
-                continue
-
-            for j in range(i - 2, -1, -1):
-                if cores_tasks[i].usrInst == cores_tasks[j + 1].usrInst:
-                    break
-
-                # 任务j+1是否超时
-                out_time = sum_time[pos][j + 1] > cores_tasks[j + 1].deadLine
-                if sum_time[pos][j + 1] + cores_tasks[i].exeTime > cores_tasks[j + 1].deadLine and not out_time:
-                    break
-
-                if cores_tasks[i].msgType == cores_tasks[j].msgType:
-                    temp = cores_tasks[i]
-                    for k in range(i, j + 1, -1):
-                        cores_tasks[k] = cores_tasks[k - 1]
-                        sum_time[pos][k] = sum_time[pos][k - 1] + temp.exeTime
-                    cores_tasks[j + 1] = temp
-                    sum_time[pos][j + 1] = sum_time[pos][j] + cores_tasks[j + 1].exeTime
-                    i += 1
-                    break
-            i -= 1
-
-        # 处理块任务
-        i = 0
-        while i < core_len - 1:
-            if cores_tasks[i].msgType == cores_tasks[i + 1].msgType:
-                j = i + 1
-                usr = {cores_tasks[i].usrInst, cores_tasks[j].usrInst}
-                ddl = [cores_tasks[i].deadLine - sum_time[pos][i], cores_tasks[j].deadLine - sum_time[pos][j]]
-                while cores_tasks[i].msgType == cores_tasks[j + 1].msgType and j + 1 < core_len:
-                    j += 1
-                    usr.add(cores_tasks[j].usrInst)
-                    ddl.append(cores_tasks[j].deadLine - sum_time[pos][j])
-
-                ddl = [e for e in ddl if e > 0]
-                min_ddl = min(ddl)
-
-                # 将j移到k位置
-                total = 0
-                vis = False
-                for k in range(j + 1, core_len - 1):
-                    if cores_tasks[k].usrInst in usr:
-                        break
-                    total += cores_tasks[k].exeTime
-                    if total > min_ddl:
-                        break
-
-                    if cores_tasks[i].msgType == cores_tasks[k + 1].msgType:
-                        # 将[i,j]平移到[k-(j-i), k]
-                        temp = cores_tasks[i:j + 1]
-                        for z in range(i, k - (j - i)):
-                            cores_tasks[z] = cores_tasks[z + j - i + 1]
-
-                        for z in range(j - i + 1):
-                            cores_tasks[k - (j - i) + z] = temp[z]
-
-                        for z in range(i, k + 1):
-                            sum_time[pos][z] = sum_time[pos][z - 1] + cores_tasks[z].exeTime
-                        vis = True
-                        break
-                if not vis:
-                    i += 1
-            i += 1
     # 4. 输出结果
     output_lines = []
     for coreId, core_tasks in enumerate(cores):
