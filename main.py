@@ -1,4 +1,5 @@
 import heapq
+from collections import defaultdict
 import sys
 
 input = lambda: sys.stdin.readline().strip()
@@ -110,7 +111,8 @@ def opt(ops, pos, core_len, cores_tasks, sum_time):
                     ddl.append(cores_tasks[j].deadLine - sum_time[pos][j])
 
                 ddl = [e for e in ddl if e >= 0]
-                min_ddl = min(ddl)
+                out_time = True if len(ddl) == 0 else False
+                min_ddl = 0 if out_time else min(ddl)
 
                 # 将j移到k位置
                 total = 0
@@ -119,7 +121,7 @@ def opt(ops, pos, core_len, cores_tasks, sum_time):
                     if cores_tasks[k].usrInst in usr:
                         break
                     total += cores_tasks[k].exeTime
-                    if total > min_ddl:
+                    if total > min_ddl and not out_time:
                         break
 
                     if cores_tasks[i].msgType == cores_tasks[k + 1].msgType:
@@ -205,6 +207,8 @@ def main():
     # min_heap = [(0, i) for i in range(m)]
     # heapq.heapify(min_heap)
 
+    k = min(3, m)
+    core_dict = [defaultdict(int) for i in range(m)]
     for item in task_total:
         if item in cur_task:
             continue
@@ -214,16 +218,25 @@ def main():
             core_idx = usr_vis[usr_id]
         else:
             # _, core_idx = heapq.heappop(min_heap)
-            core_idx = 0
-            for i in range(m):
-                if core_time[i] < core_time[core_idx]:
-                    core_idx = i
+            t = [(e, i) for i, e in enumerate(core_time)]
+            t.sort(key=lambda x: x[0])
+
+            task_type = item.msgType
+            cnt = [(core_dict[t[i][1]][task_type], t[i][1]) for i in range(k)]  # 前k个核内任务类型和当前相同的数量和核的下标
+            cnt.sort(key=lambda x: x[0], reverse=True)
+
+            # core_idx = 0
+            # for i in range(m):
+            #     if core_time[i] < core_time[core_idx]:
+            #         core_idx = i
+            core_idx = cnt[0][1]
             usr_vis[usr_id] = core_idx
 
         for task in tasks[usr_id][cur[usr_id]:item.pos + 1]:
             cores[core_idx].append(task)
             cur_task.add(task)
             core_time[core_idx] += task.exeTime
+            core_dict[core_idx][item.msgType] += 1
 
         cur[usr_id] = item.pos + 1
         # heapq.heappush(min_heap, (core_time[core_idx], core_idx))
